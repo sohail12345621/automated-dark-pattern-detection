@@ -8,11 +8,19 @@
 </head>
 <body>
     <header class="header">
-        <div class="container">
-            <h1>Automated Dark Pattern Detection System</h1>
-            <p>UI Deception Analysis & Evidence-Based Flagging</p>
+        <div class="header-container">
+            <div class="header-title">
+                <h1>Dark Pattern Identification System</h1>
+                <p>Evidence-Based Detection & UI Deception Analysis</p>
+            </div>
+            <nav class="nav-links">
+                <a href="{{ url_for('index') }}" class="active">Scanner</a>
+                <a href="{{ url_for('history') }}">Scan History</a>
+                <a href="/demo" target="_blank">Demo Page</a>
+            </nav>
         </div>
     </header>
+
     <main class="container">
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
@@ -21,14 +29,50 @@
             {% endfor %}
           {% endif %}
         {% endwith %}
-        
+
         <section class="card">
-            <h2>Scan Website</h2>
+            <h2 class="card-title">Analyze Webpage for Dark Patterns</h2>
+            <p>Enter any URL or test against our local test harness to extract UI elements, evaluate deception rules, and classify patterns via machine learning.</p>
+            
             <form action="{{ url_for('start_scan') }}" method="POST" class="scan-form">
-                <input type="text" name="url" placeholder="Enter Website URL (e.g. https://example.com)" required>
+                <input type="text" name="url" placeholder="Enter Target URL (e.g., http://127.0.0.1:5000/demo or https://example.com)" required>
                 <button type="submit" class="btn">Scan Website</button>
             </form>
+
+            <div style="margin-top: 1rem;">
+                <button type="button" id="fill-demo-url" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+                    🎯 Use Local Demo Webpage
+                </button>
+            </div>
+        </section>
+
+        <section class="card">
+            <h3 class="card-title">Supported Dark Pattern Categories</h3>
+            <div class="metrics-grid" style="margin-top: 1rem;">
+                <div class="metric-card">
+                    <strong>Urgency</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Fake countdown timers and time pressure warnings.</p>
+                </div>
+                <div class="metric-card">
+                    <strong>Scarcity</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Artificial stock limits and high demand claims.</p>
+                </div>
+                <div class="metric-card">
+                    <strong>Confirmshaming</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Manipulative option copy intended to induce guilt.</p>
+                </div>
+                <div class="metric-card">
+                    <strong>Forced Action</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Mandatory signups or forced pre-requisites.</p>
+                </div>
+                <div class="metric-card">
+                    <strong>Preselection</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Default pre-checked checkboxes for optional terms.</p>
+                </div>
+            </div>
         </section>
     </main>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>

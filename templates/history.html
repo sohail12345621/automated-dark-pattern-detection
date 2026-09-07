@@ -3,29 +3,70 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Scan History - Dark Pattern Detector</title>
+    <title>Scan History - Dark Pattern Identification System</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <header class="header">
-        <div class="container">
-            <h1>Scan History</h1>
-            <a href="{{ url_for('index') }}" class="nav-link">← Back to Scanner</a>
+        <div class="header-container">
+            <div class="header-title">
+                <h1>Scan History & Archive</h1>
+                <p>Persistent Evaluation Records</p>
+            </div>
+            <nav class="nav-links">
+                <a href="{{ url_for('index') }}">Scanner</a>
+                <a href="{{ url_for('history') }}" class="active">Scan History</a>
+            </nav>
         </div>
     </header>
+
     <main class="container">
         <section class="card">
-            <h2>Previous Scans</h2>
+            <h3 class="card-title">Previous Website Evaluations</h3>
+
             {% if scans %}
-                <ul>
-                {% for s in scans %}
-                    <li>Scan #{{ s.id }} - {{ s.url }} ({{ s.scan_date }})</li>
-                {% endfor %}
-                </ul>
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Scan ID</th>
+                            <th>Target URL</th>
+                            <th>Date & Time</th>
+                            <th>Elements Analyzed</th>
+                            <th>Detections</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in scans %}
+                        <tr>
+                            <td>#{{ s.id }}</td>
+                            <td><strong style="word-break: break-all;">{{ s.url }}</strong></td>
+                            <td>{{ s.scan_date }}</td>
+                            <td>{{ s.total_elements }}</td>
+                            <td>
+                                <span class="badge {% if s.total_detections > 0 %}badge-high{% else %}badge-ml{% endif %}">
+                                    {{ s.total_detections }} Flagged
+                                </span>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('view_results', scan_id=s.id) }}" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; text-decoration: none;">
+                                    View Report
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
             {% else %}
-                <p>No previous scans found.</p>
+            <div class="alert alert-info" style="margin-top: 1rem;">
+                No historical scans available. Run a scan from the main dashboard to generate report records.
+            </div>
             {% endif %}
         </section>
     </main>
+
+    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
 </body>
 </html>
