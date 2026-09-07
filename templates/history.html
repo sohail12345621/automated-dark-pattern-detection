@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scan History - Dark Pattern Detector</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="header">
+        <div class="container">
+            <h1>Scan History</h1>
+            <a href="{{ url_for('index') }}" class="nav-link">← Back to Scanner</a>
+        </div>
+    </header>
+    <main class="container">
+        <section class="card">
+            <h2>Previous Scans</h2>
+            {% if scans %}
+                <ul>
+                {% for s in scans %}
+                    <li>Scan #{{ s.id }} - {{ s.url }} ({{ s.scan_date }})</li>
+                {% endfor %}
+                </ul>
+            {% else %}
+                <p>No previous scans found.</p>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>
