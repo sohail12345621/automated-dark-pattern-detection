@@ -1,0 +1,25 @@
+# Python / Virtualenv
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+env/
+.venv/
+
+# Environment Variables
+.env
+
+# Screenshots & Uploads (keep directory structure)
+screenshots/*
+!screenshots/.gitkeep
+
+# ML Models
+ml/models/*.pkl
+!ml/models/.gitkeep
+
+# IDE / OS
+.vscode/
+.idea/
+*.swp
+.DS_Store
+Thumbs.db
