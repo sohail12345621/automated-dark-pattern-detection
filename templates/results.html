@@ -102,7 +102,7 @@
                                     {% if d.screenshot_path %}
                                     <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; color: var(--primary-color);">Evidence Screenshot</h4>
                                     <div style="margin-top: 0.5rem;">
-                                        <img src="{{ url_for('static', filename=d.screenshot_path) }}" alt="Evidence Screenshot" style="max-width: 100%; border: 1px solid var(--border-color); border-radius: 4px;">
+                                        <img src="{{ url_for('serve_screenshot', filename=d.screenshot_path.split('/')[-1]) }}" alt="Evidence Screenshot" style="max-width: 100%; border: 1px solid var(--border-color); border-radius: 4px;">
                                     </div>
                                     {% endif %}
                                 </div>
