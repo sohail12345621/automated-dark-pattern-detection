@@ -1,4 +1,4 @@
-from flask import Flask, render_template, request, redirect, url_for, flash, jsonify
+from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, send_from_directory
 from config.config import Config
 import os
 
@@ -45,6 +45,10 @@ def history():
     # Placeholder history data for Phase 1
     scans = []
     return render_template("history.html", scans=scans)
+
+@app.route("/demo")
+def demo_page():
+    return send_from_directory("demo_site", "index.html")
 
 @app.errorhandler(404)
 def page_not_found(e):

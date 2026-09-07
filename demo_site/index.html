@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>E-Commerce Demo Store (Dark Pattern Test Harness)</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f9; color: #333; }
+        header { background: #1a252f; color: #fff; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
+        header nav a { color: #fff; text-decoration: none; margin-right: 15px; }
+        .product-card { background: #fff; border: 1px solid #ddd; padding: 20px; border-radius: 8px; max-width: 500px; margin: 20px auto; }
+        .urgency-banner { background: #ff4d4f; color: white; padding: 10px; text-align: center; font-weight: bold; border-radius: 4px; margin-bottom: 15px; }
+        .scarcity-alert { color: #d32f2f; font-weight: bold; margin: 10px 0; }
+        .confirmshame-btn { background: transparent; color: #888; border: none; text-decoration: underline; cursor: pointer; display: block; margin: 10px 0; font-size: 0.85rem; }
+        .btn-primary { background: #28a745; color: white; border: none; padding: 10px 20px; font-size: 1rem; border-radius: 4px; cursor: pointer; }
+        .checkbox-container { margin: 15px 0; }
+    </style>
+</head>
+<body>
+    <header>
+        <h2>ShopSmart Local Demo</h2>
+        <nav>
+            <a href="#">Home</a>
+            <a href="#">About</a>
+            <a href="#">Contact</a>
+            <a href="#">Learn More</a>
+        </nav>
+    </header>
+
+    <main>
+        <!-- Urgency Dark Pattern Example -->
+        <div class="urgency-banner">
+            ⚡ Hurry! Special 50% Offer expires in 05:00 minutes!
+        </div>
+
+        <div class="product-card">
+            <h3>Premium Wireless Noise-Cancelling Headphones</h3>
+            <p>Experience studio-grade audio with active noise cancellation and 30-hour battery life.</p>
+
+            <!-- Scarcity Dark Pattern Example -->
+            <div class="scarcity-alert">
+                🔥 Hurry! Only 2 items left in stock - order soon!
+            </div>
+
+            <!-- Normal UI Action -->
+            <button class="btn-primary">View Product & Add to Cart</button>
+
+            <!-- Preselection Dark Pattern Example -->
+            <div class="checkbox-container">
+                <label>
+                    <input type="checkbox" name="newsletter_opt_in" checked>
+                    Sign me up for daily promotional emails, third-party marketing, and automatic subscription updates.
+                </label>
+            </div>
+
+            <!-- Confirmshaming Dark Pattern Example -->
+            <div>
+                <button class="confirmshame-btn">No, I don't want to save money and prefer paying full price</button>
+            </div>
+        </div>
+    </main>
+</body>
+</html>
