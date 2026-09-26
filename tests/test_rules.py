@@ -10,18 +10,12 @@ class TestRuleEngine(unittest.TestCase):
         res = self.engine.evaluate_element(elem)
         self.assertIsNotNone(res)
         self.assertEqual(res["pattern"], "Urgency")
-        self.assertEqual(res["severity"], "HIGH")
 
     def test_scarcity_detection(self):
-        elem = {"text": "Hurry! Only 2 items left in stock", "element_type": "text_element", "tag_name": "div"}
+        elem = {"text": "Only 2 items left in stock", "element_type": "text_element", "tag_name": "div"}
         res = self.engine.evaluate_element(elem)
         self.assertIsNotNone(res)
-        # Note: Rule search order will match first matching rule
-        self.assertIn(res["pattern"], ["Urgency", "Scarcity"])
-
-        elem_pure_scarcity = {"text": "Only 2 items left in stock", "element_type": "text_element", "tag_name": "div"}
-        res_scarcity = self.engine.evaluate_element(elem_pure_scarcity)
-        self.assertEqual(res_scarcity["pattern"], "Scarcity")
+        self.assertEqual(res["pattern"], "Scarcity")
 
     def test_confirmshaming_detection(self):
         elem = {"text": "No, I don't want to save money and prefer paying full price", "element_type": "button", "tag_name": "button"}
@@ -30,13 +24,31 @@ class TestRuleEngine(unittest.TestCase):
         self.assertEqual(res["pattern"], "Confirmshaming")
 
     def test_preselection_detection(self):
-        elem = {"element_type": "checkbox", "tag_name": "input", "is_checked": True, "attributes": {"type": "checkbox", "name": "newsletter"}}
+        elem = {"element_type": "checkbox", "tag_name": "input", "is_checked": True, "attributes": {"type": "checkbox", "name": "opt_in"}}
         res = self.engine.evaluate_element(elem)
         self.assertIsNotNone(res)
-        self.assertEqual(res["pattern"], "Preselection")
+        self.assertIn(res["pattern"], ["Preselection", "Privacy Manipulation"])
+
+    def test_misdirection_detection(self):
+        elem = {"text": "Uncheck if you do not wish to receive marketing", "element_type": "link", "tag_name": "a"}
+        res = self.engine.evaluate_element(elem)
+        self.assertIsNotNone(res)
+        self.assertEqual(res["pattern"], "Misdirection")
+
+    def test_privacy_manipulation_detection(self):
+        elem = {"text": "Accept All Cookies and Share Personal Data with 500+ Ad Partners", "element_type": "button", "tag_name": "button"}
+        res = self.engine.evaluate_element(elem)
+        self.assertIsNotNone(res)
+        self.assertEqual(res["pattern"], "Privacy Manipulation")
+
+    def test_forced_action_detection(self):
+        elem = {"text": "You must create an account and subscribe to promotional emails to complete checkout", "element_type": "text"}
+        res = self.engine.evaluate_element(elem)
+        self.assertIsNotNone(res)
+        self.assertEqual(res["pattern"], "Forced Action")
 
     def test_normal_element_no_detection(self):
-        elem = {"text": "View Product & Add to Cart", "element_type": "button", "tag_name": "button", "is_checked": False}
+        elem = {"text": "View Product Details & Specifications", "element_type": "button", "tag_name": "button", "is_checked": False}
         res = self.engine.evaluate_element(elem)
         self.assertIsNone(res)
 

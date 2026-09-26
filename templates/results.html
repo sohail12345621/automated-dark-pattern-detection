@@ -21,11 +21,11 @@
     </header>
 
     <main class="container">
-        <!-- Overview Metrics -->
+        <!-- Overview Metrics Grid -->
         <div class="metrics-grid">
             <div class="metric-card">
                 <div class="metric-label">Target Webpage</div>
-                <div style="font-size: 1rem; font-weight: 600; margin-top: 0.5rem; word-break: break-all;">
+                <div style="font-size: 0.95rem; font-weight: 600; margin-top: 0.5rem; word-break: break-all;">
                     {{ scan.url }}
                 </div>
             </div>
@@ -40,23 +40,76 @@
                 </div>
             </div>
             <div class="metric-card">
-                <div class="metric-label">Scan Timestamp</div>
-                <div style="font-size: 0.9rem; font-weight: 500; margin-top: 0.5rem;">
-                    {{ scan.scan_date }}
+                <div class="metric-label">Avg ML Confidence</div>
+                <div class="metric-value" style="color: var(--secondary-color);">
+                    {{ summary.avg_confidence if summary and summary.avg_confidence else "N/A" }}%
                 </div>
             </div>
         </div>
 
-        <!-- Detections Table -->
+        <!-- Analysis Summary Card -->
+        {% if summary %}
         <section class="card">
-            <h3 class="card-title">Evidence-Based Detection Summary</h3>
+            <h3 class="card-title">🔍 Comprehensive Analysis Summary</h3>
+            <div style="display: flex; gap: 2rem; flex-wrap: wrap; margin-top: 1rem;">
+                <div>
+                    <strong>Severity Distribution:</strong><br>
+                    <span class="badge badge-high">High: {{ summary.high_count }}</span>
+                    <span class="badge badge-medium">Medium: {{ summary.med_count }}</span>
+                    <span class="badge badge-low">Low: {{ summary.low_count }}</span>
+                </div>
+                <div>
+                    <strong>Category Distribution:</strong><br>
+                    {% for cat, count in summary.cat_distribution.items() %}
+                        <span class="badge badge-hybrid" style="margin-right: 4px; margin-bottom: 4px;">{{ cat }}: {{ count }}</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- ML Performance & Model Metrics Card -->
+        {% if ml_metrics %}
+        <section class="card" style="background-color: #f8fafc; border-left: 5px solid var(--secondary-color);">
+            <h3 class="card-title" style="margin-bottom: 0.5rem;">🤖 Machine Learning Model Metrics</h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
+                Evaluated on held-out test set (80/20 train-test split, 8 pattern classes).
+            </p>
+            <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                <div class="metric-card">
+                    <div class="metric-label">Model Architecture</div>
+                    <div style="font-weight: 700; margin-top: 0.25rem;">{{ ml_metrics.model_name }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Test Accuracy</div>
+                    <div class="metric-value" style="color: #27ae60;">{{ "%.2f"|format(ml_metrics.test_accuracy * 100) }}%</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Precision (Macro)</div>
+                    <div class="metric-value" style="color: #2980b9;">{{ "%.4f"|format(ml_metrics.precision) }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Recall (Macro)</div>
+                    <div class="metric-value" style="color: #8e44ad;">{{ "%.4f"|format(ml_metrics.recall) }}</div>
+                </div>
+                <div class="metric-card">
+                    <div class="metric-label">Macro F1 Score</div>
+                    <div class="metric-value" style="color: #d35400;">{{ "%.4f"|format(ml_metrics.macro_f1) }}</div>
+                </div>
+            </div>
+        </section>
+        {% endif %}
+
+        <!-- Detections & Evidence Table -->
+        <section class="card">
+            <h3 class="card-title">🛡️ Evidence-Based Detection Summary</h3>
             
             {% if scan.detections %}
             <div class="table-responsive">
                 <table class="data-table">
                     <thead>
                         <tr>
-                            <th>#</th>
+                            <th>Finding ID</th>
                             <th>Pattern Category</th>
                             <th>Element Type</th>
                             <th>Severity</th>
@@ -68,7 +121,7 @@
                     <tbody>
                         {% for d in scan.detections %}
                         <tr>
-                            <td>{{ loop.index }}</td>
+                            <td><code>{{ d.finding_id or "FIND-" ~ loop.index }}</code></td>
                             <td><strong>{{ d.pattern }}</strong></td>
                             <td><code>{{ d.element_type }}</code></td>
                             <td>
@@ -84,23 +137,37 @@
                             </td>
                             <td>
                                 <button type="button" class="btn btn-secondary btn-toggle-detail" data-target="detail-{{ loop.index }}" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
-                                    View Evidence
+                                    View Evidence & Analysis
                                 </button>
                             </td>
                         </tr>
                         <!-- Collapsible Detail Row -->
                         <tr id="detail-{{ loop.index }}" style="display: none; background-color: #fafbfc;">
                             <td colspan="7">
-                                <div style="padding: 1rem; border-left: 4px solid var(--secondary-color);">
-                                    <h4 style="margin-bottom: 0.5rem; color: var(--primary-color);">Detection Rationale</h4>
+                                <div style="padding: 1.25rem; border-left: 4px solid var(--secondary-color);">
+                                    <h4 style="margin-bottom: 0.5rem; color: var(--primary-color);">📌 Finding Rationale & Explanation</h4>
                                     <p><strong>Explanation:</strong> {{ d.explanation }}</p>
                                     <p style="margin-top: 0.5rem;"><strong>Detected Text Content:</strong> <em>"{{ d.element_text }}"</em></p>
 
-                                    <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; color: var(--primary-color);">HTML Snippet</h4>
+                                    {% if d.privacy_security_relevance %}
+                                    <div style="background: #eef2ff; border-left: 4px solid #4f46e5; padding: 0.75rem; margin-top: 0.75rem; border-radius: 4px;">
+                                        <strong style="color: #3730a3;">🔒 Privacy & Security Relevance:</strong><br>
+                                        <span style="color: #1e1b4b;">{{ d.privacy_security_relevance }}</span>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if d.recommendation %}
+                                    <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 0.75rem; margin-top: 0.75rem; border-radius: 4px;">
+                                        <strong style="color: #065f46;">💡 Actionable Remediation Recommendation:</strong><br>
+                                        <span style="color: #064e3b;">{{ d.recommendation }}</span>
+                                    </div>
+                                    {% endif %}
+
+                                    <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; color: var(--primary-color);">💻 HTML Code Snippet</h4>
                                     <pre class="code-snippet"><code>{{ d.html_snippet }}</code></pre>
 
                                     {% if d.screenshot_path %}
-                                    <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; color: var(--primary-color);">Evidence Screenshot</h4>
+                                    <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; color: var(--primary-color);">📸 Evidence Screenshot</h4>
                                     <div style="margin-top: 0.5rem;">
                                         <img src="{{ url_for('serve_screenshot', filename=d.screenshot_path.split('/')[-1]) }}" alt="Evidence Screenshot" style="max-width: 100%; border: 1px solid var(--border-color); border-radius: 4px;">
                                     </div>

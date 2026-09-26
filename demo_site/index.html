@@ -8,17 +8,20 @@
         body { font-family: Arial, sans-serif; margin: 0; padding: 20px; background: #f4f4f9; color: #333; }
         header { background: #1a252f; color: #fff; padding: 15px 20px; display: flex; justify-content: space-between; align-items: center; }
         header nav a { color: #fff; text-decoration: none; margin-right: 15px; }
-        .product-card { background: #fff; border: 1px solid #ddd; padding: 20px; border-radius: 8px; max-width: 500px; margin: 20px auto; }
+        .product-card { background: #fff; border: 1px solid #ddd; padding: 20px; border-radius: 8px; max-width: 550px; margin: 20px auto; }
         .urgency-banner { background: #ff4d4f; color: white; padding: 10px; text-align: center; font-weight: bold; border-radius: 4px; margin-bottom: 15px; }
         .scarcity-alert { color: #d32f2f; font-weight: bold; margin: 10px 0; }
         .confirmshame-btn { background: transparent; color: #888; border: none; text-decoration: underline; cursor: pointer; display: block; margin: 10px 0; font-size: 0.85rem; }
         .btn-primary { background: #28a745; color: white; border: none; padding: 10px 20px; font-size: 1rem; border-radius: 4px; cursor: pointer; }
-        .checkbox-container { margin: 15px 0; }
+        .btn-accent { background: #007bff; color: white; border: none; padding: 12px 24px; font-size: 1.1rem; border-radius: 6px; font-weight: bold; cursor: pointer; }
+        .checkbox-container { margin: 15px 0; background: #fff8e7; padding: 10px; border-left: 4px solid #ffc107; }
+        .cookie-banner { background: #2c3e50; color: white; padding: 15px; border-radius: 6px; margin: 20px auto; max-width: 550px; }
+        .misdirection-box { background: #f8d7da; border: 1px solid #f5c6cb; padding: 15px; border-radius: 6px; margin-top: 15px; }
     </style>
 </head>
 <body>
     <header>
-        <h2>ShopSmart Local Demo</h2>
+        <h2>ShopSmart Local Demo (8 Pattern Test Harness)</h2>
         <nav>
             <a href="#">Home</a>
             <a href="#">About</a>
@@ -33,6 +36,16 @@
             ⚡ Hurry! Special 50% Offer expires in 05:00 minutes!
         </div>
 
+        <!-- Privacy Manipulation & Cookie Consent Banner Example -->
+        <div class="cookie-banner">
+            <h4>🍪 Cookie & Privacy Consent Notice</h4>
+            <p>We use tracking cookies to collect your browsing activity and sell data to 500+ ad partners for personalized ads.</p>
+            <button class="btn-accent">Accept All Cookies & Share Data</button>
+            <span style="font-size: 0.75rem; color: #aaa; margin-left: 15px; text-decoration: underline; cursor: pointer;">
+                (Tiny link: Customize Preferences)
+            </span>
+        </div>
+
         <div class="product-card">
             <h3>Premium Wireless Noise-Cancelling Headphones</h3>
             <p>Experience studio-grade audio with active noise cancellation and 30-hour battery life.</p>
@@ -45,12 +58,24 @@
             <!-- Normal UI Action -->
             <button class="btn-primary">View Product & Add to Cart</button>
 
-            <!-- Preselection Dark Pattern Example -->
+            <!-- Preselection Dark Pattern Example (Pre-checked optional checkbox) -->
             <div class="checkbox-container">
                 <label>
                     <input type="checkbox" name="newsletter_opt_in" checked>
-                    Sign me up for daily promotional emails, third-party marketing, and automatic subscription updates.
+                    Pre-selected: Automatically sign me up for daily promotional emails, third-party marketing, and partner profiling.
                 </label>
+            </div>
+
+            <!-- Forced Action Example -->
+            <div style="background: #e2e3e5; padding: 10px; margin: 10px 0; border-radius: 4px;">
+                <strong>Required Action:</strong> You must create an account and subscribe to promotional emails to complete checkout.
+            </div>
+
+            <!-- Misdirection UI Example -->
+            <div class="misdirection-box">
+                <p><strong>Misdirection UI Trick:</strong> Prominent Action vs Obscured Alternative</p>
+                <button class="btn-primary" style="width: 100%; margin-bottom: 5px;">ACCEPT ALL EXTRA CHARGES & UPGRADE (Recommended)</button>
+                <a href="#" style="font-size: 0.75rem; color: #6c757d; text-align: center; display: block;">Uncheck if you do not wish to refrain from receiving marketing</a>
             </div>
 
             <!-- Confirmshaming Dark Pattern Example -->

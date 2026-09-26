@@ -5,19 +5,22 @@ class TestEvidenceEngine(unittest.TestCase):
     def setUp(self):
         self.engine = EvidenceEngine()
 
-    def test_hybrid_detection(self):
-        # Element that triggers both Rule (Hurry! Offer expires...) and ML
+    def test_hybrid_detection_and_fields(self):
         elem = {
             "text": "Hurry! Special 50% Offer expires in 05:00 minutes!",
             "element_type": "text_element",
             "tag_name": "div",
             "html_snippet": "<div class='urgency-banner'>Hurry! Special 50% Offer expires in 05:00 minutes!</div>"
         }
-        detections = self.engine.analyze_elements([elem], page_screenshot_path="screenshots/test.png")
+        detections = self.engine.analyze_elements([elem], target_url="http://test.local", page_screenshot_path="screenshots/test.png")
         self.assertEqual(len(detections), 1)
         det = detections[0]
+        self.assertIn("finding_id", det)
+        self.assertTrue(det["finding_id"].startswith("FIND-"))
         self.assertIn(det["source"], ["Hybrid", "Rule", "ML"])
         self.assertIsNotNone(det["explanation"])
+        self.assertIsNotNone(det["privacy_security_relevance"])
+        self.assertIsNotNone(det["recommendation"])
         self.assertEqual(det["screenshot_path"], "screenshots/test.png")
 
     def test_deduplication(self):

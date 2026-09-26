@@ -24,7 +24,6 @@ class DatabaseManager:
         if not MYSQL_AVAILABLE:
             return None
         try:
-            # First connect without DB specified to ensure DB exists
             conn = mysql.connector.connect(
                 host=Config.DB_HOST,
                 port=Config.DB_PORT,
@@ -38,8 +37,7 @@ class DatabaseManager:
                 cursor.close()
                 conn.database = Config.DB_NAME
             return conn
-        except Exception as e:
-            # print(f"[Database Warning] MySQL connection failed: {e}")
+        except Exception:
             return None
 
     def _get_sqlite_connection(self):
@@ -50,7 +48,6 @@ class DatabaseManager:
 
     def init_db(self):
         """Initializes database schema for scans and detections tables."""
-        # Try MySQL initialization
         mysql_conn = self._get_mysql_connection(create_db_if_missing=True)
         if mysql_conn:
             try:
@@ -69,6 +66,7 @@ class DatabaseManager:
                     CREATE TABLE IF NOT EXISTS detections (
                         id INT AUTO_INCREMENT PRIMARY KEY,
                         scan_id INT NOT NULL,
+                        finding_id VARCHAR(50),
                         pattern VARCHAR(100) NOT NULL,
                         element_type VARCHAR(100),
                         element_text TEXT,
@@ -76,6 +74,8 @@ class DatabaseManager:
                         severity VARCHAR(50),
                         source VARCHAR(50),
                         explanation TEXT,
+                        privacy_security_relevance TEXT,
+                        recommendation TEXT,
                         html_snippet TEXT,
                         screenshot_path VARCHAR(255),
                         FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE
@@ -108,6 +108,7 @@ class DatabaseManager:
             CREATE TABLE IF NOT EXISTS detections (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 scan_id INTEGER NOT NULL,
+                finding_id TEXT,
                 pattern TEXT NOT NULL,
                 element_type TEXT,
                 element_text TEXT,
@@ -115,11 +116,28 @@ class DatabaseManager:
                 severity TEXT,
                 source TEXT,
                 explanation TEXT,
+                privacy_security_relevance TEXT,
+                recommendation TEXT,
                 html_snippet TEXT,
                 screenshot_path TEXT,
                 FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE
             )
         """)
+        
+        # Ensure new columns exist if migrating existing sqlite db
+        try:
+            cursor.execute("ALTER TABLE detections ADD COLUMN finding_id TEXT")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE detections ADD COLUMN privacy_security_relevance TEXT")
+        except Exception:
+            pass
+        try:
+            cursor.execute("ALTER TABLE detections ADD COLUMN recommendation TEXT")
+        except Exception:
+            pass
+
         sqlite_conn.commit()
         sqlite_conn.close()
         print("[Database] Initialized SQLite persistent database.")
@@ -142,12 +160,13 @@ class DatabaseManager:
                     for d in detections:
                         cursor.execute("""
                             INSERT INTO detections
-                            (scan_id, pattern, element_type, element_text, confidence, severity, source, explanation, html_snippet, screenshot_path)
-                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                            (scan_id, finding_id, pattern, element_type, element_text, confidence, severity, source, explanation, privacy_security_relevance, recommendation, html_snippet, screenshot_path)
+                            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                         """, (
-                            scan_id, d.get("pattern"), d.get("element_type"), d.get("element_text"),
+                            scan_id, d.get("finding_id"), d.get("pattern"), d.get("element_type"), d.get("element_text"),
                             d.get("confidence"), d.get("severity"), d.get("source"),
-                            d.get("explanation"), d.get("html_snippet"), d.get("screenshot_path")
+                            d.get("explanation"), d.get("privacy_security_relevance"), d.get("recommendation"),
+                            d.get("html_snippet"), d.get("screenshot_path")
                         ))
 
                     conn.commit()
@@ -169,12 +188,13 @@ class DatabaseManager:
         for d in detections:
             cursor.execute("""
                 INSERT INTO detections
-                (scan_id, pattern, element_type, element_text, confidence, severity, source, explanation, html_snippet, screenshot_path)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                (scan_id, finding_id, pattern, element_type, element_text, confidence, severity, source, explanation, privacy_security_relevance, recommendation, html_snippet, screenshot_path)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """, (
-                scan_id, d.get("pattern"), d.get("element_type"), d.get("element_text"),
+                scan_id, d.get("finding_id"), d.get("pattern"), d.get("element_type"), d.get("element_text"),
                 d.get("confidence"), d.get("severity"), d.get("source"),
-                d.get("explanation"), d.get("html_snippet"), d.get("screenshot_path")
+                d.get("explanation"), d.get("privacy_security_relevance"), d.get("recommendation"),
+                d.get("html_snippet"), d.get("screenshot_path")
             ))
 
         conn.commit()

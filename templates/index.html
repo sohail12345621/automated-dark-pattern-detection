@@ -10,8 +10,8 @@
     <header class="header">
         <div class="header-container">
             <div class="header-title">
-                <h1>Dark Pattern Identification System</h1>
-                <p>Evidence-Based Detection & UI Deception Analysis</p>
+                <h1>Dark Pattern Identification & Privacy Analysis System</h1>
+                <p>Evidence-Based UI Deception Detection & Cybersecurity Privacy Controls</p>
             </div>
             <nav class="nav-links">
                 <a href="{{ url_for('index') }}" class="active">Scanner</a>
@@ -31,8 +31,8 @@
         {% endwith %}
 
         <section class="card">
-            <h2 class="card-title">Analyze Webpage for Dark Patterns</h2>
-            <p>Enter any URL or test against our local test harness to extract UI elements, evaluate deception rules, and classify patterns via machine learning.</p>
+            <h2 class="card-title">Analyze Webpage for Dark Patterns & Privacy Deception</h2>
+            <p>Enter any website URL or test against our local test harness to extract interactive DOM elements, evaluate deception rules, and classify patterns using machine learning.</p>
             
             <form action="{{ url_for('start_scan') }}" method="POST" class="scan-form">
                 <input type="text" name="url" placeholder="Enter Target URL (e.g., http://127.0.0.1:5000/demo or https://example.com)" required>
@@ -41,13 +41,25 @@
 
             <div style="margin-top: 1rem;">
                 <button type="button" id="fill-demo-url" class="btn btn-secondary" style="font-size: 0.85rem; padding: 0.4rem 0.8rem;">
-                    🎯 Use Local Demo Webpage
+                    🎯 Use Local Demo Webpage (8 Categories)
                 </button>
             </div>
         </section>
 
+        {% if ml_metrics %}
+        <section class="card" style="background-color: #f8fafc; border-left: 4px solid var(--secondary-color);">
+            <h3 class="card-title" style="margin-bottom: 0.5rem;">🤖 Active Machine Learning Model Performance</h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted);">
+                Model: <strong>{{ ml_metrics.model_name }}</strong> | 
+                Test Accuracy: <strong style="color: #27ae60;">{{ "%.2f"|format(ml_metrics.test_accuracy * 100) }}%</strong> | 
+                Macro F1: <strong style="color: #d35400;">{{ "%.4f"|format(ml_metrics.macro_f1) }}</strong> | 
+                Dataset: <strong>{{ ml_metrics.total_samples }} samples across 8 classes</strong>
+            </p>
+        </section>
+        {% endif %}
+
         <section class="card">
-            <h3 class="card-title">Supported Dark Pattern Categories</h3>
+            <h3 class="card-title">Supported Dark Pattern & Privacy Deception Categories (8 Classes)</h3>
             <div class="metrics-grid" style="margin-top: 1rem;">
                 <div class="metric-card">
                     <strong>Urgency</strong>
@@ -63,11 +75,23 @@
                 </div>
                 <div class="metric-card">
                     <strong>Forced Action</strong>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Mandatory signups or forced pre-requisites.</p>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Mandatory signups, push notifications, or forced pre-requisites.</p>
                 </div>
                 <div class="metric-card">
                     <strong>Preselection</strong>
-                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Default pre-checked checkboxes for optional terms.</p>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Default pre-checked checkboxes for optional terms or tracking.</p>
+                </div>
+                <div class="metric-card">
+                    <strong>Misdirection</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Visual tricks, disguised buttons, and confusing double negatives.</p>
+                </div>
+                <div class="metric-card">
+                    <strong>Privacy Manipulation</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Deceptive cookie banners, forced tracking, and obstacle-ridden opt-out.</p>
+                </div>
+                <div class="metric-card">
+                    <strong>Normal UI</strong>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 0.25rem;">Standard, non-deceptive user interface elements.</p>
                 </div>
             </div>
         </section>

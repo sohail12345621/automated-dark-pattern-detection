@@ -18,7 +18,8 @@ scanner = SeleniumScanner(headless=True, timeout=15)
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    ml_metrics = evidence_engine.ml_classifier.metrics
+    return render_template("index.html", ml_metrics=ml_metrics)
 
 @app.route("/scan", methods=["POST"])
 def start_scan():
@@ -47,7 +48,7 @@ def start_scan():
         # Step 2: Analyze elements with Hybrid Detection & Evidence Engine
         elements = scan_result.get("elements", [])
         screenshot_path = scan_result.get("page_screenshot_path")
-        detections = evidence_engine.analyze_elements(elements, page_screenshot_path=screenshot_path)
+        detections = evidence_engine.analyze_elements(elements, target_url=target_url, page_screenshot_path=screenshot_path)
 
         # Step 3: Persist scan record & evidence in database
         scan_id = db_manager.save_scan(
@@ -70,7 +71,34 @@ def view_results(scan_id):
         flash(f"Scan record #{scan_id} not found.", "error")
         return redirect(url_for("index"))
     
-    return render_template("results.html", scan=scan_data)
+    # Compute Summary Statistics for Dashboard
+    detections = scan_data.get("detections", [])
+    high_count = sum(1 for d in detections if str(d.get("severity", "")).upper() == "HIGH")
+    med_count = sum(1 for d in detections if str(d.get("severity", "")).upper() == "MEDIUM")
+    low_count = sum(1 for d in detections if str(d.get("severity", "")).upper() == "LOW")
+    
+    cat_distribution = {}
+    for d in detections:
+        cat = d.get("pattern", "Other")
+        cat_distribution[cat] = cat_distribution.get(cat, 0) + 1
+
+    avg_confidence = 0.0
+    if detections:
+        conf_list = [float(d.get("confidence", 0)) for d in detections if d.get("confidence") is not None]
+        if conf_list:
+            avg_confidence = sum(conf_list) / len(conf_list)
+
+    summary = {
+        "high_count": high_count,
+        "med_count": med_count,
+        "low_count": low_count,
+        "cat_distribution": cat_distribution,
+        "avg_confidence": round(avg_confidence * 100, 1)
+    }
+
+    ml_metrics = evidence_engine.ml_classifier.metrics
+
+    return render_template("results.html", scan=scan_data, summary=summary, ml_metrics=ml_metrics)
 
 @app.route("/history")
 def history():

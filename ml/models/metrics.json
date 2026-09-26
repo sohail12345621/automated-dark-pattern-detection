@@ -1,0 +1,102 @@
+{
+  "model_name": "Logistic Regression (TF-IDF)",
+  "test_accuracy": 1.0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "macro_f1": 1.0,
+  "total_samples": 3650,
+  "train_samples": 2920,
+  "test_samples": 730,
+  "classes": [
+    "confirmshaming",
+    "forced_action",
+    "misdirection",
+    "normal",
+    "preselection",
+    "privacy_manipulation",
+    "scarcity",
+    "urgency"
+  ],
+  "confusion_matrix": [
+    [
+      90,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      90,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      90,
+      0,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      100,
+      0,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      90,
+      0,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      90,
+      0
+    ],
+    [
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      0,
+      90
+    ]
+  ]
+}
