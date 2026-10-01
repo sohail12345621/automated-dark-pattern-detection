@@ -70,3 +70,49 @@ class EvidenceEngine:
                 unique_detections.append(d)
 
         return unique_detections
+
+    def calculate_privacy_risk(self, detections):
+        """
+        Calculates an explainable Privacy Risk Score (HIGH, MEDIUM, LOW)
+        based on detected privacy-impacting dark pattern findings.
+        """
+        score = 0
+        reasons = []
+
+        patterns = [d.get("pattern", "") for d in detections]
+
+        if "Privacy Manipulation" in patterns:
+            score += 30
+            reasons.append("Deceptive cookie or privacy consent controls manipulate user data choices.")
+
+        if "Preselection" in patterns:
+            score += 25
+            reasons.append("Optional consent or tracking checkboxes are pre-selected by default without explicit opt-in.")
+
+        if "Forced Action" in patterns:
+            score += 20
+            reasons.append("Mandatory registration, push notifications, or tracking forced as a prerequisite to access features.")
+
+        if "Misdirection" in patterns:
+            score += 15
+            reasons.append("Visual hierarchy tricks or confusing phrasing obscure privacy-preserving choices.")
+
+        if "Confirmshaming" in patterns:
+            score += 10
+            reasons.append("Guilt-inducing copy coerces users into surrendering personal data or agreeing to tracking.")
+
+        # Determine level
+        if score >= 45 or len([p for p in patterns if p in ["Privacy Manipulation", "Preselection", "Forced Action"]]) >= 2:
+            level = "HIGH"
+        elif score >= 20 or len(patterns) >= 1:
+            level = "MEDIUM"
+        else:
+            level = "LOW"
+            if not reasons:
+                reasons.append("No critical privacy manipulation or deceptive consent mechanisms detected.")
+
+        return {
+            "score": score,
+            "level": level,
+            "reasons": list(set(reasons))
+        }

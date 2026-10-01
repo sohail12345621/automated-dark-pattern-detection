@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>User Accounts - Dark Pattern Detection System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <div class="header-title">
+                <h1>User Account Administration</h1>
+                <p>Role-Based Access Control Console (ADMIN)</p>
+            </div>
+            <nav class="nav-links">
+                <a href="{{ url_for('index') }}">Scanner</a>
+                <a href="{{ url_for('history') }}">Scan History</a>
+                <a href="{{ url_for('admin_audit_logs') }}">Audit Logs</a>
+                <a href="{{ url_for('admin_users') }}" class="active">User Accounts</a>
+                <a href="{{ url_for('logout') }}">Logout ({{ session.get('username') }})</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ 'error' if category == 'error' else 'info' }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <section class="card">
+            <h3 class="card-title">👥 Registered User Accounts</h3>
+
+            {% if users %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Username</th>
+                            <th>Email Address</th>
+                            <th>Role</th>
+                            <th>Registration Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in users %}
+                        <tr>
+                            <td><code>#{{ user.id }}</code></td>
+                            <td><strong>{{ user.username }}</strong></td>
+                            <td>{{ user.email }}</td>
+                            <td>
+                                <span class="badge {% if user.role == 'ADMIN' %}badge-high{% else %}badge-low{% endif %}">
+                                    {{ user.role }}
+                                </span>
+                            </td>
+                            <td>{{ user.created_at }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">No user accounts found.</div>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

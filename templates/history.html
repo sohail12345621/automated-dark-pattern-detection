@@ -16,6 +16,15 @@
             <nav class="nav-links">
                 <a href="{{ url_for('index') }}">Scanner</a>
                 <a href="{{ url_for('history') }}" class="active">Scan History</a>
+                {% if session.get('role') == 'ADMIN' %}
+                    <a href="{{ url_for('admin_audit_logs') }}">Audit Logs</a>
+                    <a href="{{ url_for('admin_users') }}">User Accounts</a>
+                {% endif %}
+                {% if session.get('user_id') %}
+                    <a href="{{ url_for('logout') }}">Logout ({{ session.get('username') }})</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}">Login</a>
+                {% endif %}
             </nav>
         </div>
     </header>

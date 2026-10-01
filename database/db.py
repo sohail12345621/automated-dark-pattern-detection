@@ -13,6 +13,7 @@ class DatabaseManager:
     """
     Database persistence manager supporting MySQL with automatic SQLite fallback
     for zero-downtime local demonstration.
+    Handles Scans, Detections, User Authentication, and Security Audit Logging.
     """
 
     def __init__(self):
@@ -47,7 +48,7 @@ class DatabaseManager:
         return conn
 
     def init_db(self):
-        """Initializes database schema for scans and detections tables."""
+        """Initializes database schema for scans, detections, users, and audit_logs tables."""
         mysql_conn = self._get_mysql_connection(create_db_if_missing=True)
         if mysql_conn:
             try:
@@ -81,6 +82,31 @@ class DatabaseManager:
                         FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE
                     )
                 """)
+
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS users (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        username VARCHAR(100) UNIQUE NOT NULL,
+                        email VARCHAR(255) UNIQUE NOT NULL,
+                        password_hash TEXT NOT NULL,
+                        role VARCHAR(20) NOT NULL DEFAULT 'USER',
+                        created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+
+                cursor.execute("""
+                    CREATE TABLE IF NOT EXISTS audit_logs (
+                        id INT AUTO_INCREMENT PRIMARY KEY,
+                        user_id INT,
+                        username VARCHAR(100),
+                        action VARCHAR(50) NOT NULL,
+                        status VARCHAR(20) DEFAULT 'SUCCESS',
+                        ip_address VARCHAR(45),
+                        details TEXT,
+                        timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
+                    )
+                """)
+
                 mysql_conn.commit()
                 cursor.close()
                 mysql_conn.close()
@@ -123,25 +149,36 @@ class DatabaseManager:
                 FOREIGN KEY (scan_id) REFERENCES scans(id) ON DELETE CASCADE
             )
         """)
-        
-        # Ensure new columns exist if migrating existing sqlite db
-        try:
-            cursor.execute("ALTER TABLE detections ADD COLUMN finding_id TEXT")
-        except Exception:
-            pass
-        try:
-            cursor.execute("ALTER TABLE detections ADD COLUMN privacy_security_relevance TEXT")
-        except Exception:
-            pass
-        try:
-            cursor.execute("ALTER TABLE detections ADD COLUMN recommendation TEXT")
-        except Exception:
-            pass
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                username TEXT UNIQUE NOT NULL,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'USER',
+                created_at TEXT NOT NULL
+            )
+        """)
+
+        cursor.execute("""
+            CREATE TABLE IF NOT EXISTS audit_logs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                user_id INTEGER,
+                username TEXT,
+                action TEXT NOT NULL,
+                status TEXT DEFAULT 'SUCCESS',
+                ip_address TEXT,
+                details TEXT,
+                timestamp TEXT NOT NULL
+            )
+        """)
 
         sqlite_conn.commit()
         sqlite_conn.close()
         print("[Database] Initialized SQLite persistent database.")
 
+    # --- SCAN & DETECTION METHODS ---
     def save_scan(self, url, total_elements, total_detections, detections):
         """Saves scan metadata and associated detections. Returns new scan_id."""
         scan_date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -256,3 +293,135 @@ class DatabaseManager:
         scans = [dict(r) for r in cursor.fetchall()]
         conn.close()
         return scans
+
+    # --- USER AUTHENTICATION METHODS ---
+    def create_user(self, username, email, password_hash, role="USER"):
+        """Creates a new user account. Returns new user_id."""
+        created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if self.use_mysql:
+            conn = self._get_mysql_connection()
+            if conn:
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "INSERT INTO users (username, email, password_hash, role, created_at) VALUES (%s, %s, %s, %s, %s)",
+                        (username, email, password_hash, role, created_at)
+                    )
+                    user_id = cursor.lastrowid
+                    conn.commit()
+                    cursor.close()
+                    conn.close()
+                    return user_id
+                except Exception as e:
+                    print(f"[Database Error] MySQL create_user failed: {e}")
+                    return None
+
+        conn = self._get_sqlite_connection()
+        cursor = conn.cursor()
+        try:
+            cursor.execute(
+                "INSERT INTO users (username, email, password_hash, role, created_at) VALUES (?, ?, ?, ?, ?)",
+                (username, email, password_hash, role, created_at)
+            )
+            user_id = cursor.lastrowid
+            conn.commit()
+            conn.close()
+            return user_id
+        except sqlite3.IntegrityError:
+            conn.close()
+            return None
+
+    def get_user_by_username(self, username):
+        """Retrieves user by username."""
+        if self.use_mysql:
+            conn = self._get_mysql_connection()
+            if conn:
+                try:
+                    cursor = conn.cursor(dictionary=True)
+                    cursor.execute("SELECT * FROM users WHERE username = %s", (username,))
+                    user = cursor.fetchone()
+                    cursor.close()
+                    conn.close()
+                    return user
+                except Exception as e:
+                    print(f"[Database Error] MySQL get_user_by_username failed: {e}")
+
+        conn = self._get_sqlite_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
+        row = cursor.fetchone()
+        conn.close()
+        return dict(row) if row else None
+
+    def get_all_users(self):
+        """Retrieves list of all users (for admin audit view)."""
+        if self.use_mysql:
+            conn = self._get_mysql_connection()
+            if conn:
+                try:
+                    cursor = conn.cursor(dictionary=True)
+                    cursor.execute("SELECT id, username, email, role, created_at FROM users ORDER BY id ASC")
+                    users = cursor.fetchall()
+                    cursor.close()
+                    conn.close()
+                    return users
+                except Exception as e:
+                    print(f"[Database Error] MySQL get_all_users failed: {e}")
+
+        conn = self._get_sqlite_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, username, email, role, created_at FROM users ORDER BY id ASC")
+        users = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+        return users
+
+    # --- SECURITY AUDIT LOGGING METHODS ---
+    def log_audit_event(self, user_id, username, action, status="SUCCESS", ip_address="127.0.0.1", details=None):
+        """Records a security audit event."""
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if self.use_mysql:
+            conn = self._get_mysql_connection()
+            if conn:
+                try:
+                    cursor = conn.cursor()
+                    cursor.execute(
+                        "INSERT INTO audit_logs (user_id, username, action, status, ip_address, details, timestamp) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                        (user_id, username, action, status, ip_address, details, timestamp)
+                    )
+                    conn.commit()
+                    cursor.close()
+                    conn.close()
+                    return
+                except Exception as e:
+                    print(f"[Database Error] MySQL log_audit_event failed: {e}")
+
+        conn = self._get_sqlite_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "INSERT INTO audit_logs (user_id, username, action, status, ip_address, details, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (user_id, username, action, status, ip_address, details, timestamp)
+        )
+        conn.commit()
+        conn.close()
+
+    def get_audit_logs(self, limit=100):
+        """Retrieves audit logs ordered by newest first."""
+        if self.use_mysql:
+            conn = self._get_mysql_connection()
+            if conn:
+                try:
+                    cursor = conn.cursor(dictionary=True)
+                    cursor.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT %s", (limit,))
+                    logs = cursor.fetchall()
+                    cursor.close()
+                    conn.close()
+                    return logs
+                except Exception as e:
+                    print(f"[Database Error] MySQL get_audit_logs failed: {e}")
+
+        conn = self._get_sqlite_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT * FROM audit_logs ORDER BY id DESC LIMIT ?", (limit,))
+        logs = [dict(r) for r in cursor.fetchall()]
+        conn.close()
+        return logs

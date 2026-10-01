@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Security Audit Logs - Dark Pattern Detection System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <header class="header">
+        <div class="header-container">
+            <div class="header-title">
+                <h1>Security Audit Log Console</h1>
+                <p>System Event Monitoring & Security Activity Audit (ADMIN)</p>
+            </div>
+            <nav class="nav-links">
+                <a href="{{ url_for('index') }}">Scanner</a>
+                <a href="{{ url_for('history') }}">Scan History</a>
+                <a href="{{ url_for('admin_audit_logs') }}" class="active">Audit Logs</a>
+                <a href="{{ url_for('admin_users') }}">User Accounts</a>
+                <a href="{{ url_for('logout') }}">Logout ({{ session.get('username') }})</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+          {% if messages %}
+            {% for category, message in messages %}
+              <div class="alert alert-{{ 'error' if category == 'error' else 'info' }}">{{ message }}</div>
+            {% endfor %}
+          {% endif %}
+        {% endwith %}
+
+        <section class="card">
+            <h3 class="card-title">🔒 System Security Audit Records</h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
+                Displaying security events, authentication attempts, scan triggers, and administrative operations.
+            </p>
+
+            {% if audit_logs %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Log ID</th>
+                            <th>Timestamp</th>
+                            <th>Action / Event</th>
+                            <th>User</th>
+                            <th>Status</th>
+                            <th>IP Address</th>
+                            <th>Details</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for log in audit_logs %}
+                        <tr>
+                            <td><code>#{{ log.id }}</code></td>
+                            <td>{{ log.timestamp }}</td>
+                            <td><strong>{{ log.action }}</strong></td>
+                            <td>{{ log.username or 'Anonymous' }}</td>
+                            <td>
+                                <span class="badge {% if log.status == 'SUCCESS' %}badge-ml{% elif log.status == 'BLOCKED' %}badge-high{% else %}badge-medium{% endif %}">
+                                    {{ log.status }}
+                                </span>
+                            </td>
+                            <td><code>{{ log.ip_address }}</code></td>
+                            <td><small>{{ log.details or '-' }}</small></td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info">No audit events recorded yet.</div>
+            {% endif %}
+        </section>
+    </main>
+</body>
+</html>

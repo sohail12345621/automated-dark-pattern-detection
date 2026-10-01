@@ -16,6 +16,15 @@
             <nav class="nav-links">
                 <a href="{{ url_for('index') }}">Scanner</a>
                 <a href="{{ url_for('history') }}">Scan History</a>
+                {% if session.get('role') == 'ADMIN' %}
+                    <a href="{{ url_for('admin_audit_logs') }}">Audit Logs</a>
+                    <a href="{{ url_for('admin_users') }}">User Accounts</a>
+                {% endif %}
+                {% if session.get('user_id') %}
+                    <a href="{{ url_for('logout') }}">Logout ({{ session.get('username') }})</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}">Login</a>
+                {% endif %}
             </nav>
         </div>
     </header>
@@ -46,6 +55,34 @@
                 </div>
             </div>
         </div>
+
+        <!-- Privacy Risk Score Card -->
+        {% if privacy_risk %}
+        <section class="card" style="border-left: 6px solid {% if privacy_risk.level == 'HIGH' %}#e74c3c{% elif privacy_risk.level == 'MEDIUM' %}#f39c12{% else %}#27ae60{% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h3 class="card-title" style="margin-bottom: 0.25rem;">🔒 Privacy Risk Assessment</h3>
+                    <p style="font-size: 0.9rem; color: var(--text-muted);">
+                        Deterministic security score evaluating privacy manipulation and consent deception impact.
+                    </p>
+                </div>
+                <div>
+                    <span class="badge" style="font-size: 1.1rem; padding: 0.5rem 1rem; background-color: {% if privacy_risk.level == 'HIGH' %}#e74c3c{% elif privacy_risk.level == 'MEDIUM' %}#f39c12{% else %}#27ae60{% endif %};">
+                        PRIVACY RISK: {{ privacy_risk.level }} ({{ privacy_risk.score }} pts)
+                    </span>
+                </div>
+            </div>
+
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <strong style="color: var(--primary-color);">Identified Risk Factors & Explanations:</strong>
+                <ul style="margin-top: 0.5rem; margin-left: 1.25rem; color: #334155;">
+                    {% for reason in privacy_risk.reasons %}
+                        <li style="margin-bottom: 0.3rem;">{{ reason }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </section>
+        {% endif %}
 
         <!-- Analysis Summary Card -->
         {% if summary %}

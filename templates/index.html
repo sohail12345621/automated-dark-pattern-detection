@@ -17,6 +17,15 @@
                 <a href="{{ url_for('index') }}" class="active">Scanner</a>
                 <a href="{{ url_for('history') }}">Scan History</a>
                 <a href="/demo" target="_blank">Demo Page</a>
+                {% if session.get('role') == 'ADMIN' %}
+                    <a href="{{ url_for('admin_audit_logs') }}">Audit Logs</a>
+                    <a href="{{ url_for('admin_users') }}">User Accounts</a>
+                {% endif %}
+                {% if session.get('user_id') %}
+                    <a href="{{ url_for('logout') }}">Logout ({{ session.get('username') }})</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}">Login</a>
+                {% endif %}
             </nav>
         </div>
     </header>
@@ -25,10 +34,22 @@
         {% with messages = get_flashed_messages(with_categories=true) %}
           {% if messages %}
             {% for category, message in messages %}
-              <div class="alert alert-{{ category }}">{{ message }}</div>
+              <div class="alert alert-{{ 'error' if category == 'error' else 'info' }}">{{ message }}</div>
             {% endfor %}
           {% endif %}
         {% endwith %}
+
+        {% if session.get('user_id') %}
+        <div class="alert alert-info" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>Logged in as <strong>{{ session.get('username') }}</strong> (Role: <span class="badge {% if session.get('role') == 'ADMIN' %}badge-high{% else %}badge-low{% endif %}">{{ session.get('role') }}</span>)</span>
+            <span style="font-size: 0.85rem;">Session Active (HttpOnly / SameSite Lax)</span>
+        </div>
+        {% else %}
+        <div class="alert alert-info" style="display: flex; justify-content: space-between; align-items: center;">
+            <span>ℹ️ Log in to access persistent analysis history and security audit logs. Default Admin: <code>admin</code> / <code>admin123</code></span>
+            <a href="{{ url_for('login') }}" class="btn btn-secondary" style="padding: 0.3rem 0.8rem; font-size: 0.85rem; text-decoration: none;">Login Now</a>
+        </div>
+        {% endif %}
 
         <section class="card">
             <h2 class="card-title">Analyze Webpage for Dark Patterns & Privacy Deception</h2>
