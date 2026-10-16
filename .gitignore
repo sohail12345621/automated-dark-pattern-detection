@@ -23,3 +23,7 @@ ml/models/*.pkl
 *.swp
 .DS_Store
 Thumbs.db
+*.bak
+*.db
+*.sqlite
+chromedriver*

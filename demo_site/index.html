@@ -82,6 +82,47 @@
             <div>
                 <button class="confirmshame-btn">No, I don't want to save money and prefer paying full price</button>
             </div>
+
+            <!-- Insecure HTTP Login Form Example -->
+            <div style="background: #fff3cd; border: 1px solid #ffeeba; padding: 15px; border-radius: 6px; margin-top: 15px;">
+                <h4 style="margin-top: 0; color: #856404;">⚠️ Insecure Authentication Test</h4>
+                <form action="http://insecure-auth.example.com/api/login" method="POST">
+                    <p style="font-size: 0.85rem; margin-bottom: 5px;">Submits credentials over unencrypted HTTP endpoint:</p>
+                    <input type="email" name="username" placeholder="user@example.com" style="width: 90%; padding: 6px; margin-bottom: 6px;">
+                    <input type="password" name="password" placeholder="Account Password" style="width: 90%; padding: 6px; margin-bottom: 8px;">
+                    <button type="submit" class="btn-primary" style="background: #e0a800; font-size: 0.9rem;">Sign In Over HTTP</button>
+                </form>
+            </div>
+
+            <!-- Deceptive Link (Visible Domain vs Href Target Mismatch) -->
+            <div style="background: #f8f9fa; border: 1px solid #dee2e6; padding: 12px; border-radius: 6px; margin-top: 15px;">
+                <strong>Suspicious / Deceptive Link:</strong>
+                <p style="font-size: 0.85rem; margin: 5px 0;">Anchor text displays a trusted domain while destination points to third-party:</p>
+                <a href="https://external-phish.example.org/verify" style="color: #007bff; font-weight: bold;">
+                    https://paypal.com/verify-account
+                </a>
+            </div>
+
+            <!-- Buried / Hidden Cookie Reject Button -->
+            <div style="background: #2c3e50; color: white; padding: 12px; border-radius: 6px; margin-top: 15px; font-size: 0.75rem;">
+                <p style="margin: 0 0 8px 0;"><strong>Buried Consent Controls:</strong> Asymmetrical choice manipulation.</p>
+                <button class="btn-accent" style="padding: 6px 14px; font-size: 0.85rem;">Accept All Cookies</button>
+                <button style="background: transparent; color: #475569; border: none; font-size: 0.5rem; cursor: pointer; opacity: 0.2;">Reject All Non-Essential</button>
+            </div>
+
+            <!-- Hidden Iframe (Clickjacking / Redressing Deception) -->
+            <iframe src="https://tracker-beacon.example.com/overlay" style="opacity:0; width:0px; height:0px; border:none;" title="Deceptive Invisible Target"></iframe>
+
+            <!-- Embedded Third-Party Tracking Script Mock -->
+            <script src="https://googletagmanager.com/gtm.js?id=GTM-TEST01"></script>
+            <script>
+                // Automated permission invocation without user gesture
+                function autoPrompt() {
+                    if (window.Notification && Notification.requestPermission) {
+                        Notification.requestPermission();
+                    }
+                }
+            </script>
         </div>
     </main>
 </body>

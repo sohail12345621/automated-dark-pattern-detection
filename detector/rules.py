@@ -1,9 +1,13 @@
 import re
+from detector.security_rules import SecurityRuleEngine
 
 class RuleEngine:
     """Rule-based dark pattern detector analyzing DOM elements and textual properties."""
 
     def __init__(self):
+        # 0. Deceptive-UI Security Rules Engine
+        self.security_rules = SecurityRuleEngine()
+
         # 1. Urgency Patterns
         self.urgency_patterns = [
             r"\bhurry\b", r"\bact now\b", r"\blimited time\b", r"\bexpires\b",
@@ -53,6 +57,11 @@ class RuleEngine:
         Evaluates a single extracted DOM element dictionary against rules.
         Returns a detection dict if flagged, or None.
         """
+        # Deceptive-UI Security Rules Evaluation
+        sec_detection = self.security_rules.evaluate_element(element)
+        if sec_detection:
+            return sec_detection
+
         text = element.get("text", "").lower()
         tag_name = element.get("tag_name", "")
         elem_type = element.get("element_type", "")

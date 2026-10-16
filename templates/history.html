@@ -31,36 +31,101 @@
 
     <main class="container">
         <section class="card">
-            <h3 class="card-title">Previous Website Evaluations</h3>
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; margin-bottom: 1.25rem;">
+                <div>
+                    <h3 class="card-title" style="margin: 0;">Previous Website Evaluations</h3>
+                    <p style="font-size: 0.85rem; color: var(--text-muted); margin: 0.25rem 0 0 0;">
+                        Historical dark pattern and cybersecurity audit records.
+                    </p>
+                </div>
+
+                <!-- Category and Severity Filter Bar -->
+                <form method="GET" action="{{ url_for('history') }}" id="history-filter-form" style="display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap;">
+                    <select name="category" id="category-filter" class="form-input" style="padding: 0.4rem 0.6rem; font-size: 0.85rem; width: auto; border-radius: 4px;">
+                        <option value="">-- All Categories --</option>
+                        <option value="Urgency" {% if selected_category == 'Urgency' %}selected{% endif %}>Urgency</option>
+                        <option value="Scarcity" {% if selected_category == 'Scarcity' %}selected{% endif %}>Scarcity</option>
+                        <option value="Confirmshaming" {% if selected_category == 'Confirmshaming' %}selected{% endif %}>Confirmshaming</option>
+                        <option value="Forced Action" {% if selected_category == 'Forced Action' %}selected{% endif %}>Forced Action</option>
+                        <option value="Misdirection" {% if selected_category == 'Misdirection' %}selected{% endif %}>Misdirection</option>
+                        <option value="Privacy Manipulation" {% if selected_category == 'Privacy Manipulation' %}selected{% endif %}>Privacy Manipulation</option>
+                        <option value="Preselection" {% if selected_category == 'Preselection' %}selected{% endif %}>Preselection</option>
+                        <option value="Missing Security Header" {% if selected_category == 'Missing Security Header' %}selected{% endif %}>Missing Security Header</option>
+                        <option value="Insecure Transport" {% if selected_category == 'Insecure Transport' %}selected{% endif %}>Insecure Transport</option>
+                        <option value="Third-Party Tracker Detected" {% if selected_category == 'Third-Party Tracker Detected' %}selected{% endif %}>Third-Party Tracker Detected</option>
+                        <option value="Insecure Form" {% if selected_category == 'Insecure Form' %}selected{% endif %}>Insecure Form</option>
+                        <option value="Deceptive Links" {% if selected_category == 'Deceptive Links' %}selected{% endif %}>Deceptive Links</option>
+                    </select>
+
+                    <select name="severity" id="severity-filter" class="form-input" style="padding: 0.4rem 0.6rem; font-size: 0.85rem; width: auto; border-radius: 4px;">
+                        <option value="">-- All Severities --</option>
+                        <option value="HIGH" {% if selected_severity == 'HIGH' %}selected{% endif %}>High Severity</option>
+                        <option value="MEDIUM" {% if selected_severity == 'MEDIUM' %}selected{% endif %}>Medium Severity</option>
+                        <option value="LOW" {% if selected_severity == 'LOW' %}selected{% endif %}>Low Severity</option>
+                    </select>
+
+                    <button type="submit" class="btn btn-primary" style="padding: 0.4rem 0.8rem; font-size: 0.85rem;">
+                        Filter
+                    </button>
+                    {% if selected_category or selected_severity %}
+                    <a href="{{ url_for('history') }}" class="btn btn-secondary" style="padding: 0.4rem 0.7rem; font-size: 0.85rem; text-decoration: none;">
+                        Reset
+                    </a>
+                    {% endif %}
+                </form>
+            </div>
 
             {% if scans %}
             <div class="table-responsive">
-                <table class="data-table">
+                <table class="data-table" id="history-table">
                     <thead>
                         <tr>
                             <th>Scan ID</th>
                             <th>Target URL</th>
                             <th>Date & Time</th>
-                            <th>Elements Analyzed</th>
+                            <th>Risk Score</th>
                             <th>Detections</th>
+                            <th>Categories</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for s in scans %}
-                        <tr>
+                        <tr class="scan-row" data-categories="{{ s.categories | join(',') | lower }}" data-severities="{{ s.severities | join(',') | upper }}">
                             <td>#{{ s.id }}</td>
                             <td><strong style="word-break: break-all;">{{ s.url }}</strong></td>
                             <td>{{ s.scan_date }}</td>
-                            <td>{{ s.total_elements }}</td>
+                            <td>
+                                <span class="badge" style="background-color: {% if s.risk_score >= 76 %}#e74c3c{% elif s.risk_score >= 51 %}#e67e22{% elif s.risk_score >= 26 %}#f39c12{% else %}#27ae60{% endif %}; font-weight: 700;">
+                                    {{ s.risk_score or 0 }}/100
+                                </span>
+                            </td>
                             <td>
                                 <span class="badge {% if s.total_detections > 0 %}badge-high{% else %}badge-ml{% endif %}">
                                     {{ s.total_detections }} Flagged
                                 </span>
                             </td>
                             <td>
-                                <a href="{{ url_for('view_results', scan_id=s.id) }}" class="btn btn-secondary" style="padding: 0.3rem 0.6rem; font-size: 0.8rem; text-decoration: none;">
+                                {% if s.categories %}
+                                    {% for c in s.categories[:3] %}
+                                        <span class="badge badge-hybrid" style="font-size: 0.7rem; margin-right: 2px;">{{ c }}</span>
+                                    {% endfor %}
+                                    {% if s.categories|length > 3 %}
+                                        <span style="font-size: 0.75rem; color: var(--text-muted);">+{{ s.categories|length - 3 }} more</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span style="color: var(--text-muted); font-size: 0.8rem;">None</span>
+                                {% endif %}
+                            </td>
+                            <td style="white-space: nowrap;">
+                                <a href="{{ url_for('view_results', scan_id=s.id) }}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; text-decoration: none;">
                                     View Report
+                                </a>
+                                <a href="{{ url_for('export_scan', scan_id=s.id, format='json') }}" target="_blank" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; text-decoration: none;">
+                                    JSON
+                                </a>
+                                <a href="{{ url_for('export_scan', scan_id=s.id, format='csv') }}" class="btn btn-secondary" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; text-decoration: none;">
+                                    CSV
                                 </a>
                             </td>
                         </tr>
@@ -70,7 +135,7 @@
             </div>
             {% else %}
             <div class="alert alert-info" style="margin-top: 1rem;">
-                No historical scans available. Run a scan from the main dashboard to generate report records.
+                No scans match the selected category/severity filters.
             </div>
             {% endif %}
         </section>

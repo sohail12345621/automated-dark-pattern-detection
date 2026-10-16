@@ -1,13 +1,18 @@
 import os
 import time
+import secrets
 from functools import wraps
 from datetime import datetime
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory
+import io
+import csv
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_from_directory, jsonify, Response
 from werkzeug.security import generate_password_hash, check_password_hash
 from config.config import Config
 from crawler.selenium_scanner import SeleniumScanner
 from detector.evidence import EvidenceEngine
 from database.db import DatabaseManager
+from security.url_validator import validate_url, is_local_demo_url
+from detector.security_headers import analyze_security_posture
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -17,13 +22,51 @@ app.config["SESSION_COOKIE_HTTPONLY"] = True
 app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 app.config["PERMANENT_SESSION_LIFETIME"] = 3600
 
+# Security Headers (CSP, X-Frame-Options, X-Content-Type-Options)
+@app.after_request
+def set_security_headers(response):
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["X-Frame-Options"] = "DENY"
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline'; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "frame-ancestors 'none';"
+    )
+    return response
+
+# CSRF Token Injection & Context Processor
+def get_csrf_token():
+    if "csrf_token" not in session:
+        session["csrf_token"] = secrets.token_hex(16)
+    return session["csrf_token"]
+
+@app.context_processor
+def inject_csrf_token():
+    return dict(csrf_token=get_csrf_token)
+
+# In-Memory Per-IP Rate Limiting for Scans (Max 10 scans per 60s)
+SCAN_RATE_LIMITS = {}
+
+def is_scan_rate_limited(ip_address, limit=10, window=60):
+    now = time.time()
+    timestamps = SCAN_RATE_LIMITS.get(ip_address, [])
+    timestamps = [t for t in timestamps if now - t < window]
+    if len(timestamps) >= limit:
+        SCAN_RATE_LIMITS[ip_address] = timestamps
+        return True
+    timestamps.append(now)
+    SCAN_RATE_LIMITS[ip_address] = timestamps
+    return False
+
 # Ensure required runtime directories exist
 os.makedirs(Config.SCREENSHOTS_DIR, exist_ok=True)
 
 # Initialize persistent database manager and detector engines
 db_manager = DatabaseManager()
 evidence_engine = EvidenceEngine()
-scanner = SeleniumScanner(headless=True, timeout=15)
+scanner = SeleniumScanner(headless=True, timeout=15, max_scan_time=30)
 
 # In-Memory Brute-Force Login Protection Tracker
 FAILED_LOGINS = {}  # { username: {"count": int, "lockout_until": float} }
@@ -172,6 +215,20 @@ def start_scan():
     username = session.get("username", "Guest")
     ip_addr = request.remote_addr or "127.0.0.1"
 
+    # CSRF Token Check (if token was generated in session)
+    session_csrf = session.get("csrf_token")
+    form_csrf = request.form.get("csrf_token")
+    if session_csrf and form_csrf != session_csrf:
+        db_manager.log_audit_event(user_id, username, "SCAN_BLOCKED", status="FAILED", ip_address=ip_addr, details="CSRF token mismatch")
+        flash("Security Alert: Invalid or missing CSRF token.", "error")
+        return redirect(url_for("index"))
+
+    # In-memory per-IP Rate Limiting
+    if is_scan_rate_limited(ip_addr):
+        db_manager.log_audit_event(user_id, username, "SCAN_BLOCKED", status="BLOCKED", ip_address=ip_addr, details="Scan rate limit exceeded")
+        flash("Rate limit exceeded: Maximum 10 scans per minute. Please wait before retrying.", "error")
+        return redirect(url_for("index"))
+
     if not raw_url:
         flash("Please enter a valid website URL to analyze.", "error")
         return redirect(url_for("index"))
@@ -183,6 +240,13 @@ def start_scan():
         target_url = "https://" + raw_url
     else:
         target_url = raw_url
+
+    # SSRF & URL Validation
+    is_valid, url_err = validate_url(target_url, allow_local_demo=True)
+    if not is_valid:
+        db_manager.log_audit_event(user_id, username, "SCAN_BLOCKED", status="FAILED", ip_address=ip_addr, details=f"SSRF/URL blocked: {url_err}")
+        flash(f"Security Alert: {url_err}", "error")
+        return redirect(url_for("index"))
 
     try:
         db_manager.log_audit_event(user_id, username, "SCAN_STARTED", status="SUCCESS", ip_address=ip_addr, details=f"Target: {target_url}")
@@ -201,15 +265,26 @@ def start_scan():
         screenshot_path = scan_result.get("page_screenshot_path")
         detections = evidence_engine.analyze_elements(elements, target_url=target_url, page_screenshot_path=screenshot_path)
 
+        # Step 2b: Analyze Security Headers, TLS Certificate & Trackers
+        sec_findings, risk_data = analyze_security_posture(
+            target_url=target_url,
+            elements=elements,
+            page_screenshot_path=screenshot_path,
+            existing_detections=detections
+        )
+        all_detections = detections + sec_findings
+
         # Step 3: Persist scan record & evidence in database
         scan_id = db_manager.save_scan(
             url=target_url,
             total_elements=scan_result.get("total_elements", 0),
-            total_detections=len(detections),
-            detections=detections
+            total_detections=len(all_detections),
+            detections=all_detections,
+            risk_score=risk_data.get("score", 0),
+            risk_breakdown=risk_data.get("breakdown", {})
         )
 
-        db_manager.log_audit_event(user_id, username, "SCAN_COMPLETED", status="SUCCESS", ip_address=ip_addr, details=f"Scan #{scan_id} completed with {len(detections)} findings")
+        db_manager.log_audit_event(user_id, username, "SCAN_COMPLETED", status="SUCCESS", ip_address=ip_addr, details=f"Scan #{scan_id} completed with {len(all_detections)} findings (Risk Score: {risk_data.get('score', 0)})")
 
         return redirect(url_for("view_results", scan_id=scan_id))
 
@@ -261,12 +336,86 @@ def view_results(scan_id):
 
     ml_metrics = evidence_engine.ml_classifier.metrics
 
-    return render_template("results.html", scan=scan_data, summary=summary, privacy_risk=privacy_risk, ml_metrics=ml_metrics)
+    # Split detections into Dark Patterns and Security Findings
+    security_patterns = {
+        "Insecure Form", "Hidden/Overlay Deception", "Deceptive Links",
+        "Cookie/Consent Manipulation", "Excessive Permission Prompts",
+        "Missing Security Header", "Insecure Transport", "Third-Party Tracker Detected",
+        "Invalid / Expired Certificate", "Certificate Expiring Soon", "Invalid / Untrusted Certificate"
+    }
+    security_sources = {"Security Headers", "TLS Check", "Tracker Inventory"}
+
+    security_findings = [d for d in detections if d.get("source") in security_sources or d.get("pattern") in security_patterns]
+    dark_pattern_findings = [d for d in detections if d not in security_findings]
+
+    return render_template(
+        "results.html",
+        scan=scan_data,
+        summary=summary,
+        privacy_risk=privacy_risk,
+        ml_metrics=ml_metrics,
+        security_findings=security_findings,
+        dark_pattern_findings=dark_pattern_findings
+    )
+
+@app.route("/results/<int:scan_id>/export")
+def export_scan(scan_id):
+    scan_data = db_manager.get_scan(scan_id)
+    if not scan_data:
+        flash(f"Scan record #{scan_id} not found.", "error")
+        return redirect(url_for("index"))
+
+    export_format = request.args.get("format", "json").lower()
+    if export_format == "csv":
+        output = io.StringIO()
+        writer = csv.writer(output)
+        writer.writerow(["finding_id", "pattern", "element_type", "severity", "confidence", "source", "explanation", "html_snippet"])
+        for d in scan_data.get("detections", []):
+            writer.writerow([
+                d.get("finding_id", ""),
+                d.get("pattern", ""),
+                d.get("element_type", ""),
+                d.get("severity", ""),
+                d.get("confidence", ""),
+                d.get("source", ""),
+                d.get("explanation", ""),
+                d.get("html_snippet", "")
+            ])
+        return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": f"attachment; filename=scan_{scan_id}_report.csv"})
+
+    # Default: JSON Export (sanitize local paths)
+    safe_detections = []
+    for d in scan_data.get("detections", []):
+        d_copy = dict(d)
+        if d_copy.get("screenshot_path"):
+            d_copy["screenshot_path"] = os.path.basename(d_copy["screenshot_path"])
+        safe_detections.append(d_copy)
+
+    return jsonify({
+        "scan_id": scan_data.get("id"),
+        "url": scan_data.get("url"),
+        "scan_date": scan_data.get("scan_date"),
+        "total_elements": scan_data.get("total_elements"),
+        "total_detections": scan_data.get("total_detections"),
+        "risk_score": scan_data.get("risk_score", 0),
+        "risk_breakdown": scan_data.get("risk_breakdown", {}),
+        "detections": safe_detections
+    })
 
 @app.route("/history")
 def history():
-    scans = db_manager.get_all_scans()
-    return render_template("history.html", scans=scans)
+    selected_category = request.args.get("category", "").strip()
+    selected_severity = request.args.get("severity", "").strip().upper()
+    scans = db_manager.get_all_scans(
+        category=selected_category or None,
+        severity=selected_severity or None
+    )
+    return render_template(
+        "history.html",
+        scans=scans,
+        selected_category=selected_category,
+        selected_severity=selected_severity
+    )
 
 @app.route("/demo")
 def demo_page():

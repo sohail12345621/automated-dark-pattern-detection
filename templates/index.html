@@ -56,6 +56,7 @@
             <p>Enter any website URL or test against our local test harness to extract interactive DOM elements, evaluate deception rules, and classify patterns using machine learning.</p>
             
             <form action="{{ url_for('start_scan') }}" method="POST" class="scan-form">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                 <input type="text" name="url" placeholder="Enter Target URL (e.g., http://127.0.0.1:5000/demo or https://example.com)" required>
                 <button type="submit" class="btn">Scan Website</button>
             </form>

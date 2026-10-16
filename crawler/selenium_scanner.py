@@ -1,6 +1,8 @@
 import os
 import time
 import uuid
+import tempfile
+import shutil
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
 from selenium.webdriver.common.by import By
@@ -8,11 +10,12 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 
 class SeleniumScanner:
-    """Automated Webpage Scanner & DOM Extractor using Selenium."""
+    """Automated Webpage Scanner & DOM Extractor using Selenium with restricted profile."""
 
-    def __init__(self, headless=True, timeout=15):
+    def __init__(self, headless=True, timeout=15, max_scan_time=30):
         self.headless = headless
         self.timeout = timeout
+        self.max_scan_time = max_scan_time
 
     def _get_driver(self):
         options = Options()
@@ -24,9 +27,26 @@ class SeleniumScanner:
         options.add_argument("--window-size=1920,1080")
         options.add_argument("user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
         
+        # Security restrictions: isolate session & block downloads
+        temp_dir = tempfile.mkdtemp(prefix="chrome_safe_")
+        options.add_argument(f"--user-data-dir={temp_dir}")
+        options.add_argument("--disable-extensions")
+        options.add_argument("--disable-background-networking")
+        options.add_argument("--disable-default-apps")
+        options.add_argument("--disable-sync")
+        options.add_argument("--no-first-run")
+        
+        prefs = {
+            "download.default_directory": os.devnull,
+            "download.prompt_for_download": False,
+            "download_restrictions": 3
+        }
+        options.add_experimental_option("prefs", prefs)
+        
         driver = webdriver.Chrome(options=options)
         driver.set_page_load_timeout(self.timeout)
-        return driver
+        driver.set_script_timeout(self.timeout)
+        return driver, temp_dir
 
     def scan_url(self, url, screenshots_dir="screenshots"):
         """
@@ -34,6 +54,8 @@ class SeleniumScanner:
         and captures screenshot evidence.
         """
         driver = None
+        temp_dir = None
+        start_time = time.time()
         result = {
             "success": False,
             "url": url,
@@ -45,7 +67,7 @@ class SeleniumScanner:
         }
 
         try:
-            driver = self._get_driver()
+            driver, temp_dir = self._get_driver()
             driver.get(url)
 
             # Wait for document body to be present
@@ -53,6 +75,10 @@ class SeleniumScanner:
                 EC.presence_of_element_located((By.TAG_NAME, "body"))
             )
             time.sleep(1) # Brief pause for dynamic script rendering
+
+            # Check max scan time limit
+            if (time.time() - start_time) > self.max_scan_time:
+                raise TimeoutError(f"Scan exceeded maximum allowed time of {self.max_scan_time}s.")
 
             result["page_title"] = driver.title or url
 
@@ -73,7 +99,12 @@ class SeleniumScanner:
             result["error"] = str(e)
         finally:
             if driver:
-                driver.quit()
+                try:
+                    driver.quit()
+                except Exception:
+                    pass
+            if temp_dir and os.path.exists(temp_dir):
+                shutil.rmtree(temp_dir, ignore_errors=True)
 
         return result
 
@@ -88,6 +119,9 @@ class SeleniumScanner:
             ("checkbox", "//input[@type='checkbox']"),
             ("radio", "//input[@type='radio']"),
             ("form", "//form"),
+            ("input", "//input"),
+            ("iframe", "//iframe"),
+            ("script", "//script"),
             ("text_element", "//p | //span | //h1 | //h2 | //h3 | //h4 | //h5 | //h6 | //div | //b | //strong | //em | //label | //li")
         ]
 
@@ -98,8 +132,8 @@ class SeleniumScanner:
                 web_elements = driver.find_elements(By.XPATH, xpath)
                 for elem in web_elements:
                     try:
-                        # Skip hidden or zero-size elements
-                        if not elem.is_displayed():
+                        # Skip hidden non-security elements (allow iframes & scripts for deceptive overlay analysis)
+                        if not elem.is_displayed() and category not in ["iframe", "script"]:
                             continue
 
                         elem_id = elem.id
@@ -136,6 +170,10 @@ class SeleniumScanner:
                                 "type": elem.get_attribute("type") or "",
                                 "value": elem.get_attribute("value") or "",
                                 "href": elem.get_attribute("href") or "",
+                                "action": elem.get_attribute("action") or "",
+                                "style": elem.get_attribute("style") or "",
+                                "onclick": elem.get_attribute("onclick") or "",
+                                "src": elem.get_attribute("src") or "",
                                 "role": elem.get_attribute("role") or ""
                             }
                         })

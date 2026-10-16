@@ -18,3 +18,15 @@ class Config:
     BASE_DIR = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     SCREENSHOTS_DIR = os.path.join(BASE_DIR, "screenshots")
     MODEL_DIR = os.path.join(BASE_DIR, "ml", "models")
+
+    # Risk Scoring Weights (0-100 scale)
+    RISK_WEIGHTS = {
+        "dark_pattern_high": 15,
+        "dark_pattern_medium": 8,
+        "dark_pattern_low": 3,
+        "missing_security_header": 5,
+        "insecure_transport_http": 20,
+        "invalid_expired_cert": 25,
+        "known_tracker_script": 10,
+        "third_party_script": 2,
+    }

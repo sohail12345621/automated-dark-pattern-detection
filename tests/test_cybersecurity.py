@@ -105,9 +105,9 @@ class TestCybersecurityModule(unittest.TestCase):
 
     # 5. SECURITY AUDIT LOGGING TESTS
     def test_audit_logging(self):
-        logs_before = len(self.db.get_audit_logs())
+        logs_before = len(self.db.get_audit_logs(limit=1000))
         self.db.log_audit_event(None, "audit_test", "TEST_ACTION", status="SUCCESS", ip_address="127.0.0.1", details="Test details")
-        logs_after = self.db.get_audit_logs()
+        logs_after = self.db.get_audit_logs(limit=1000)
         self.assertGreater(len(logs_after), logs_before)
         latest_log = logs_after[0]
         self.assertEqual(latest_log["action"], "TEST_ACTION")

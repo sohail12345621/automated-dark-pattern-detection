@@ -1,3 +1,4 @@
+import json
 import os
 import sqlite3
 from datetime import datetime
@@ -59,7 +60,9 @@ class DatabaseManager:
                         url TEXT NOT NULL,
                         scan_date DATETIME DEFAULT CURRENT_TIMESTAMP,
                         total_elements INT NOT NULL DEFAULT 0,
-                        total_detections INT NOT NULL DEFAULT 0
+                        total_detections INT NOT NULL DEFAULT 0,
+                        risk_score INT DEFAULT 0,
+                        risk_breakdown TEXT
                     )
                 """)
 
@@ -107,6 +110,17 @@ class DatabaseManager:
                     )
                 """)
 
+                # Safe column migration for MySQL
+                try:
+                    cursor.execute("SHOW COLUMNS FROM scans")
+                    cols = [c[0] for c in cursor.fetchall()]
+                    if "risk_score" not in cols:
+                        cursor.execute("ALTER TABLE scans ADD COLUMN risk_score INT DEFAULT 0")
+                    if "risk_breakdown" not in cols:
+                        cursor.execute("ALTER TABLE scans ADD COLUMN risk_breakdown TEXT")
+                except Exception:
+                    pass
+
                 mysql_conn.commit()
                 cursor.close()
                 mysql_conn.close()
@@ -126,9 +140,22 @@ class DatabaseManager:
                 url TEXT NOT NULL,
                 scan_date TEXT NOT NULL,
                 total_elements INTEGER NOT NULL DEFAULT 0,
-                total_detections INTEGER NOT NULL DEFAULT 0
+                total_detections INTEGER NOT NULL DEFAULT 0,
+                risk_score INTEGER DEFAULT 0,
+                risk_breakdown TEXT DEFAULT '{}'
             )
         """)
+
+        # Safe schema migrations for SQLite (inspect before ALTER)
+        try:
+            cursor.execute("PRAGMA table_info(scans)")
+            existing_cols = [row[1] for row in cursor.fetchall()]
+            if "risk_score" not in existing_cols:
+                cursor.execute("ALTER TABLE scans ADD COLUMN risk_score INTEGER DEFAULT 0")
+            if "risk_breakdown" not in existing_cols:
+                cursor.execute("ALTER TABLE scans ADD COLUMN risk_breakdown TEXT DEFAULT '{}'")
+        except Exception:
+            pass
 
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS detections (
@@ -179,9 +206,13 @@ class DatabaseManager:
         print("[Database] Initialized SQLite persistent database.")
 
     # --- SCAN & DETECTION METHODS ---
-    def save_scan(self, url, total_elements, total_detections, detections):
-        """Saves scan metadata and associated detections. Returns new scan_id."""
+    def save_scan(self, url, total_elements, total_detections, detections, risk_score=0, risk_breakdown=None):
+        """Saves scan metadata, risk score, breakdown, and associated detections. Returns new scan_id."""
         scan_date_str = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        if isinstance(risk_breakdown, dict):
+            risk_breakdown_str = json.dumps(risk_breakdown)
+        else:
+            risk_breakdown_str = risk_breakdown or "{}"
 
         if self.use_mysql:
             conn = self._get_mysql_connection()
@@ -189,8 +220,8 @@ class DatabaseManager:
                 try:
                     cursor = conn.cursor()
                     cursor.execute(
-                        "INSERT INTO scans (url, scan_date, total_elements, total_detections) VALUES (%s, %s, %s, %s)",
-                        (url, scan_date_str, total_elements, total_detections)
+                        "INSERT INTO scans (url, scan_date, total_elements, total_detections, risk_score, risk_breakdown) VALUES (%s, %s, %s, %s, %s, %s)",
+                        (url, scan_date_str, total_elements, total_detections, risk_score, risk_breakdown_str)
                     )
                     scan_id = cursor.lastrowid
 
@@ -217,8 +248,8 @@ class DatabaseManager:
         conn = self._get_sqlite_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "INSERT INTO scans (url, scan_date, total_elements, total_detections) VALUES (?, ?, ?, ?)",
-            (url, scan_date_str, total_elements, total_detections)
+            "INSERT INTO scans (url, scan_date, total_elements, total_detections, risk_score, risk_breakdown) VALUES (?, ?, ?, ?, ?, ?)",
+            (url, scan_date_str, total_elements, total_detections, risk_score, risk_breakdown_str)
         )
         scan_id = cursor.lastrowid
 
@@ -252,6 +283,11 @@ class DatabaseManager:
                         scan["detections"] = cursor.fetchall()
                         cursor.close()
                         conn.close()
+                        if isinstance(scan.get("risk_breakdown"), str):
+                            try:
+                                scan["risk_breakdown"] = json.loads(scan["risk_breakdown"])
+                            except Exception:
+                                pass
                         return scan
                 except Exception as e:
                     print(f"[Database Error] MySQL get_scan failed: {e}")
@@ -269,17 +305,46 @@ class DatabaseManager:
         cursor.execute("SELECT * FROM detections WHERE scan_id = ?", (scan_id,))
         scan["detections"] = [dict(r) for r in cursor.fetchall()]
         conn.close()
+        if isinstance(scan.get("risk_breakdown"), str):
+            try:
+                scan["risk_breakdown"] = json.loads(scan["risk_breakdown"])
+            except Exception:
+                pass
         return scan
 
-    def get_all_scans(self):
-        """Retrieves summary list of all scans ordered by newest first."""
+    def get_all_scans(self, category=None, severity=None):
+        """Retrieves summary list of all scans ordered by newest first, with optional category/severity filters."""
         if self.use_mysql:
             conn = self._get_mysql_connection()
             if conn:
                 try:
                     cursor = conn.cursor(dictionary=True)
-                    cursor.execute("SELECT * FROM scans ORDER BY id DESC")
+                    query = "SELECT DISTINCT s.* FROM scans s"
+                    params = []
+                    clauses = []
+                    if category or severity:
+                        query += " JOIN detections d ON s.id = d.scan_id"
+                        if category:
+                            clauses.append("LOWER(d.pattern) = LOWER(%s)")
+                            params.append(category)
+                        if severity:
+                            clauses.append("UPPER(d.severity) = UPPER(%s)")
+                            params.append(severity)
+                    if clauses:
+                        query += " WHERE " + " AND ".join(clauses)
+                    query += " ORDER BY s.id DESC"
+                    cursor.execute(query, tuple(params))
                     scans = cursor.fetchall()
+                    for scan in scans:
+                        cursor.execute("SELECT DISTINCT pattern, severity FROM detections WHERE scan_id = %s", (scan["id"],))
+                        det_rows = cursor.fetchall()
+                        scan["categories"] = [r["pattern"] for r in det_rows if r.get("pattern")]
+                        scan["severities"] = list(set(r["severity"].upper() for r in det_rows if r.get("severity")))
+                        if isinstance(scan.get("risk_breakdown"), str):
+                            try:
+                                scan["risk_breakdown"] = json.loads(scan["risk_breakdown"])
+                            except Exception:
+                                pass
                     cursor.close()
                     conn.close()
                     return scans
@@ -289,8 +354,32 @@ class DatabaseManager:
         # SQLite fallback execution
         conn = self._get_sqlite_connection()
         cursor = conn.cursor()
-        cursor.execute("SELECT * FROM scans ORDER BY id DESC")
+        query = "SELECT DISTINCT s.* FROM scans s"
+        params = []
+        clauses = []
+        if category or severity:
+            query += " JOIN detections d ON s.id = d.scan_id"
+            if category:
+                clauses.append("LOWER(d.pattern) = LOWER(?)")
+                params.append(category)
+            if severity:
+                clauses.append("UPPER(d.severity) = UPPER(?)")
+                params.append(severity)
+        if clauses:
+            query += " WHERE " + " AND ".join(clauses)
+        query += " ORDER BY s.id DESC"
+        cursor.execute(query, tuple(params))
         scans = [dict(r) for r in cursor.fetchall()]
+        for scan in scans:
+            cursor.execute("SELECT DISTINCT pattern, severity FROM detections WHERE scan_id = ?", (scan["id"],))
+            det_rows = cursor.fetchall()
+            scan["categories"] = [r[0] for r in det_rows if r[0]]
+            scan["severities"] = list(set(r[1].upper() for r in det_rows if r[1]))
+            if isinstance(scan.get("risk_breakdown"), str):
+                try:
+                    scan["risk_breakdown"] = json.loads(scan["risk_breakdown"])
+                except Exception:
+                    pass
         conn.close()
         return scans
 

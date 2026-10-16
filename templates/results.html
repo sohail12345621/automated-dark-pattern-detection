@@ -56,6 +56,78 @@
             </div>
         </div>
 
+        <!-- Action Toolbar with Export Buttons -->
+        <div style="display: flex; justify-content: flex-end; gap: 0.75rem; margin-bottom: 1rem;">
+            <a href="{{ url_for('export_scan', scan_id=scan.id, format='json') }}" class="btn btn-secondary" target="_blank" style="text-decoration: none; font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+                📥 Export JSON
+            </a>
+            <a href="{{ url_for('export_scan', scan_id=scan.id, format='csv') }}" class="btn btn-secondary" style="text-decoration: none; font-size: 0.85rem; padding: 0.4rem 0.8rem;">
+                📥 Export CSV
+            </a>
+        </div>
+
+        <!-- Composite Domain Risk Score Card with Breakdown -->
+        <section class="card" style="border-left: 6px solid {% if scan.risk_score >= 76 %}#e74c3c{% elif scan.risk_score >= 51 %}#e67e22{% elif scan.risk_score >= 26 %}#f39c12{% else %}#27ae60{% endif %};">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
+                <div>
+                    <h3 class="card-title" style="margin-bottom: 0.25rem;">🛡️ Domain Composite Risk Score</h3>
+                    <p style="font-size: 0.9rem; color: var(--text-muted);">
+                        Comprehensive defensive security & deception index combining dark pattern findings, missing headers, TLS posture, and third-party trackers.
+                    </p>
+                </div>
+                <div>
+                    <span class="badge" style="font-size: 1.15rem; padding: 0.6rem 1.2rem; background-color: {% if scan.risk_score >= 76 %}#e74c3c{% elif scan.risk_score >= 51 %}#e67e22{% elif scan.risk_score >= 26 %}#f39c12{% else %}#27ae60{% endif %}; color: #fff; font-weight: 700;">
+                        RISK SCORE: {{ scan.risk_score or 0 }}/100 
+                        ({% if scan.risk_score >= 76 %}CRITICAL{% elif scan.risk_score >= 51 %}HIGH{% elif scan.risk_score >= 26 %}MEDIUM{% else %}LOW{% endif %})
+                    </span>
+                </div>
+            </div>
+
+            {% if scan.risk_breakdown %}
+            <div style="margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border-color);">
+                <strong style="color: var(--primary-color);">Weighted Risk Component Breakdown:</strong>
+                <div class="metrics-grid" style="grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-top: 0.75rem;">
+                    <div class="metric-card" style="padding: 0.75rem;">
+                        <div class="metric-label">Dark Patterns Impact</div>
+                        <div class="metric-value" style="font-size: 1.4rem; color: var(--accent-color);">
+                            {{ scan.risk_breakdown.dark_patterns or 0 }} pts
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
+                            {{ scan.risk_breakdown.counts.dark_patterns_total or 0 }} UI deceptive patterns flagged
+                        </div>
+                    </div>
+                    <div class="metric-card" style="padding: 0.75rem;">
+                        <div class="metric-label">Missing Headers</div>
+                        <div class="metric-value" style="font-size: 1.4rem; color: #e67e22;">
+                            {{ scan.risk_breakdown.security_headers or 0 }} pts
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
+                            {{ scan.risk_breakdown.counts.missing_headers_total or 0 }} missing security headers
+                        </div>
+                    </div>
+                    <div class="metric-card" style="padding: 0.75rem;">
+                        <div class="metric-label">TLS & Transport</div>
+                        <div class="metric-value" style="font-size: 1.4rem; color: #8e44ad;">
+                            {{ scan.risk_breakdown.transport_tls or 0 }} pts
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
+                            {{ scan.risk_breakdown.counts.tls_issues_total or 0 }} transport vulnerabilities
+                        </div>
+                    </div>
+                    <div class="metric-card" style="padding: 0.75rem;">
+                        <div class="metric-label">Third-Party Trackers</div>
+                        <div class="metric-value" style="font-size: 1.4rem; color: #c0392b;">
+                            {{ scan.risk_breakdown.trackers or 0 }} pts
+                        </div>
+                        <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 0.2rem;">
+                            {{ scan.risk_breakdown.counts.trackers_total or 0 }} trackers / {{ scan.risk_breakdown.counts.third_party_domains_total or 0 }} external domains
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </section>
+
         <!-- Privacy Risk Score Card -->
         {% if privacy_risk %}
         <section class="card" style="border-left: 6px solid {% if privacy_risk.level == 'HIGH' %}#e74c3c{% elif privacy_risk.level == 'MEDIUM' %}#f39c12{% else %}#27ae60{% endif %};">
@@ -137,11 +209,93 @@
         </section>
         {% endif %}
 
+        <!-- Dedicated Security Findings Section -->
+        <section class="card" style="border-left: 5px solid #4f46e5;">
+            <h3 class="card-title">🔐 Security Findings & Defensive Posture</h3>
+            <p style="font-size: 0.9rem; color: var(--text-muted); margin-bottom: 1rem;">
+                Audits of HTTP security headers, transport encryption integrity, third-party tracker scripts, and deceptive form/link security risks.
+            </p>
+
+            {% if security_findings %}
+            <div class="table-responsive">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Finding ID</th>
+                            <th>Security Category</th>
+                            <th>Target / Header</th>
+                            <th>Severity</th>
+                            <th>Source</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for s in security_findings %}
+                        <tr>
+                            <td><code>{{ s.finding_id or "SEC-" ~ loop.index }}</code></td>
+                            <td><strong>{{ s.pattern }}</strong></td>
+                            <td><code>{{ s.element_text }}</code></td>
+                            <td>
+                                <span class="badge badge-{{ s.severity | lower }}">
+                                    {{ s.severity }}
+                                </span>
+                            </td>
+                            <td>
+                                <span class="badge badge-hybrid">
+                                    {{ s.source }}
+                                </span>
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-secondary btn-toggle-detail" data-target="sec-detail-{{ loop.index }}" style="padding: 0.3rem 0.6rem; font-size: 0.8rem;">
+                                    View Analysis
+                                </button>
+                            </td>
+                        </tr>
+                        <!-- Collapsible Security Detail Row -->
+                        <tr id="sec-detail-{{ loop.index }}" style="display: none; background-color: #f8fafc;">
+                            <td colspan="6">
+                                <div style="padding: 1.25rem; border-left: 4px solid #4f46e5;">
+                                    <h4 style="margin-bottom: 0.5rem; color: var(--primary-color);">📌 Security Risk Analysis</h4>
+                                    <p><strong>Explanation:</strong> {{ s.explanation }}</p>
+
+                                    {% if s.privacy_security_relevance %}
+                                    <div style="background: #eef2ff; border-left: 4px solid #4f46e5; padding: 0.75rem; margin-top: 0.75rem; border-radius: 4px;">
+                                        <strong style="color: #3730a3;">🔒 Impact Assessment:</strong><br>
+                                        <span style="color: #1e1b4b;">{{ s.privacy_security_relevance }}</span>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if s.recommendation %}
+                                    <div style="background: #ecfdf5; border-left: 4px solid #10b981; padding: 0.75rem; margin-top: 0.75rem; border-radius: 4px;">
+                                        <strong style="color: #065f46;">💡 Remediation Guidance:</strong><br>
+                                        <span style="color: #064e3b;">{{ s.recommendation }}</span>
+                                    </div>
+                                    {% endif %}
+
+                                    {% if s.html_snippet %}
+                                    <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; color: var(--primary-color);">💻 Technical Snippet</h4>
+                                    <pre class="code-snippet"><code>{{ s.html_snippet | e }}</code></pre>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="alert alert-info" style="margin-top: 1rem;">
+                No critical security header deficiencies, transport flaws, or tracking scripts were flagged.
+            </div>
+            {% endif %}
+        </section>
+
         <!-- Detections & Evidence Table -->
         <section class="card">
-            <h3 class="card-title">🛡️ Evidence-Based Detection Summary</h3>
+            <h3 class="card-title">🛡️ Deceptive Dark Pattern UI Evidence Summary</h3>
             
-            {% if scan.detections %}
+            {% set active_detections = dark_pattern_findings if dark_pattern_findings is defined else scan.detections %}
+            {% if active_detections %}
             <div class="table-responsive">
                 <table class="data-table">
                     <thead>
@@ -156,7 +310,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for d in scan.detections %}
+                        {% for d in active_detections %}
                         <tr>
                             <td><code>{{ d.finding_id or "FIND-" ~ loop.index }}</code></td>
                             <td><strong>{{ d.pattern }}</strong></td>
@@ -201,7 +355,7 @@
                                     {% endif %}
 
                                     <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; color: var(--primary-color);">💻 HTML Code Snippet</h4>
-                                    <pre class="code-snippet"><code>{{ d.html_snippet }}</code></pre>
+                                    <pre class="code-snippet"><code>{{ d.html_snippet | e }}</code></pre>
 
                                     {% if d.screenshot_path %}
                                     <h4 style="margin-top: 1rem; margin-bottom: 0.5rem; color: var(--primary-color);">📸 Evidence Screenshot</h4>
